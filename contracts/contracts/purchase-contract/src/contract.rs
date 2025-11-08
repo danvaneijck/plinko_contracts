@@ -1,10 +1,11 @@
 use cosmwasm_std::{
-    coin, entry_point, to_json_binary, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env,
+    entry_point, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env,
     MessageInfo, Response, StdResult, Uint128,
 };
 use injective_cosmwasm::msg::{
     create_mint_tokens_msg, create_new_denom_msg, create_set_token_metadata_msg,
 };
+use injective_cosmwasm::InjectiveMsgWrapper;
 
 use crate::error::ContractError;
 use crate::msg::{
@@ -18,7 +19,7 @@ pub fn instantiate(
     env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response<InjectiveMsgWrapper>, ContractError> {
     let treasury_address = deps.api.addr_validate(&msg.treasury_address)?;
 
     if msg.exchange_rate.is_zero() {
@@ -73,7 +74,7 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response<InjectiveMsgWrapper>, ContractError> {
     match msg {
         ExecuteMsg::Purchase {} => execute_purchase(deps, env, info),
         ExecuteMsg::FundHouse {
@@ -93,7 +94,7 @@ fn execute_purchase(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-) -> Result<Response, ContractError> {
+) -> Result<Response<InjectiveMsgWrapper>, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     let mut stats = STATS.load(deps.storage)?;
 
@@ -128,15 +129,21 @@ fn execute_purchase(
 
     // Create mint message for the tokens
     let mint_msg = create_mint_tokens_msg(
-        env.contract.address.to_string(),
-        coin(token_amount.u128(), config.token_denom.clone()),
+        env.contract.address,
+        Coin {
+            denom: config.token_denom.clone(),
+            amount: token_amount,
+        },
         info.sender.to_string(),
     );
 
     // Send INJ to treasury
-    let send_inj_msg = CosmosMsg::Bank(BankMsg::Send {
+    let send_inj_msg: CosmosMsg<InjectiveMsgWrapper> = CosmosMsg::Bank(BankMsg::Send {
         to_address: config.treasury_address.to_string(),
-        amount: vec![coin(inj_amount.u128(), "inj")],
+        amount: vec![Coin {
+            denom: "inj".to_string(),
+            amount: inj_amount,
+        }],
     });
 
     Ok(Response::new()
@@ -154,7 +161,7 @@ fn execute_fund_house(
     info: MessageInfo,
     game_contract: String,
     amount: Uint128,
-) -> Result<Response, ContractError> {
+) -> Result<Response<InjectiveMsgWrapper>, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     let mut stats = STATS.load(deps.storage)?;
 
@@ -183,8 +190,11 @@ fn execute_fund_house(
 
     // Create mint message to fund the game contract
     let mint_msg = create_mint_tokens_msg(
-        env.contract.address.to_string(),
-        coin(amount.u128(), config.token_denom.clone()),
+        env.contract.address,
+        Coin {
+            denom: config.token_denom.clone(),
+            amount,
+        },
         game_contract_addr.to_string(),
     );
 
@@ -199,7 +209,7 @@ fn execute_update_exchange_rate(
     deps: DepsMut,
     info: MessageInfo,
     new_rate: Uint128,
-) -> Result<Response, ContractError> {
+) -> Result<Response<InjectiveMsgWrapper>, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
 
     if info.sender != config.admin {
@@ -222,7 +232,7 @@ fn execute_update_treasury(
     deps: DepsMut,
     info: MessageInfo,
     new_treasury: String,
-) -> Result<Response, ContractError> {
+) -> Result<Response<InjectiveMsgWrapper>, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
 
     if info.sender != config.admin {
