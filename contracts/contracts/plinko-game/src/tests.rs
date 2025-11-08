@@ -6,8 +6,8 @@ mod tests {
         ConfigResponse, Difficulty, ExecuteMsg, HistoryResponse, InstantiateMsg, LeaderboardType,
         QueryMsg, RiskLevel, StatsResponse, UserStatsResponse, LeaderboardResponse,
     };
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coin, coins, from_json, BankMsg, DepsMut, Response, Uint128};
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, message_info};
+    use cosmwasm_std::{coin, coins, from_json, BankMsg, DepsMut, Response, Uint128, Addr};
 
     const ADMIN: &str = "admin";
     const TOKEN_DENOM: &str = "factory/inj1contract/plink";
@@ -19,7 +19,7 @@ mod tests {
             token_denom: TOKEN_DENOM.to_string(),
         };
 
-        let info = mock_info(ADMIN, &[]);
+        let info = message_info(&Addr::unchecked(ADMIN), &[]);
         instantiate(deps, mock_env(), info, msg)
     }
 
@@ -45,7 +45,7 @@ mod tests {
         let config: ConfigResponse = from_json(&res).unwrap();
 
         assert_eq!(config.token_denom, TOKEN_DENOM);
-        assert_eq!(config.admin, ADMIN);
+        assert_eq!(config.admin.as_str(), ADMIN);
 
         // Check stats
         let query_msg = QueryMsg::Stats {};
@@ -70,7 +70,7 @@ mod tests {
             difficulty: Difficulty::Easy,
             risk_level: RiskLevel::Low,
         };
-        let info = mock_info(PLAYER, &coins(100_000000000000000000, TOKEN_DENOM));
+        let info = message_info(&Addr::unchecked(PLAYER), &coins(100_000000000000000000, TOKEN_DENOM));
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // Should have 1 message for sending winnings (if any)
@@ -105,7 +105,7 @@ mod tests {
             difficulty: Difficulty::Easy,
             risk_level: RiskLevel::Low,
         };
-        let info = mock_info(PLAYER, &[]);
+        let info = message_info(&Addr::unchecked(PLAYER), &[]);
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
 
         assert!(matches!(err, ContractError::InvalidBetAmount {}));
@@ -120,7 +120,7 @@ mod tests {
             difficulty: Difficulty::Easy,
             risk_level: RiskLevel::Low,
         };
-        let info = mock_info(PLAYER, &coins(100, "wrong_denom"));
+        let info = message_info(&Addr::unchecked(PLAYER), &coins(100, "wrong_denom"));
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
 
         assert!(matches!(err, ContractError::InvalidBetAmount {}));
@@ -141,7 +141,7 @@ mod tests {
                 difficulty: Difficulty::Easy,
                 risk_level: RiskLevel::Low,
             };
-            let info = mock_info(&player, &coins(100_000000000000000000, TOKEN_DENOM));
+            let info = message_info(&Addr::unchecked(&player), &coins(100_000000000000000000, TOKEN_DENOM));
             execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         }
 
@@ -169,7 +169,7 @@ mod tests {
                 difficulty: Difficulty::Easy,
                 risk_level: RiskLevel::Low,
             };
-            let info = mock_info(&player, &coins(100_000000000000000000, TOKEN_DENOM));
+            let info = message_info(&Addr::unchecked(&player), &coins(100_000000000000000000, TOKEN_DENOM));
             execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         }
 
@@ -202,7 +202,7 @@ mod tests {
                 difficulty: Difficulty::Easy,
                 risk_level: RiskLevel::Low,
             };
-            let info = mock_info(PLAYER, &coins(100_000000000000000000, TOKEN_DENOM));
+            let info = message_info(&Addr::unchecked(PLAYER), &coins(100_000000000000000000, TOKEN_DENOM));
             execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         }
 
@@ -211,7 +211,7 @@ mod tests {
             difficulty: Difficulty::Easy,
             risk_level: RiskLevel::Low,
         };
-        let info = mock_info(PLAYER2, &coins(50_000000000000000000, TOKEN_DENOM));
+        let info = message_info(&Addr::unchecked(PLAYER2), &coins(50_000000000000000000, TOKEN_DENOM));
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // Query global leaderboard
@@ -224,7 +224,7 @@ mod tests {
 
         assert_eq!(leaderboard.entries.len(), 2);
         // Player 1 should be first (300 total wagered)
-        assert_eq!(leaderboard.entries[0].player, PLAYER);
+        assert_eq!(leaderboard.entries[0].player.as_str(), PLAYER);
         assert_eq!(leaderboard.entries[0].value, Uint128::new(300_000000000000000000));
     }
 
@@ -241,7 +241,7 @@ mod tests {
             difficulty: Difficulty::Easy,
             risk_level: RiskLevel::Low,
         };
-        let info = mock_info(PLAYER, &coins(100_000000000000000000, TOKEN_DENOM));
+        let info = message_info(&Addr::unchecked(PLAYER), &coins(100_000000000000000000, TOKEN_DENOM));
         let mut env = mock_env();
         execute(deps.as_mut(), env.clone(), info, msg.clone()).unwrap();
 
@@ -263,7 +263,7 @@ mod tests {
         assert_eq!(leaderboard.entries.len(), 0);
 
         // Play another game after reset
-        let info = mock_info(PLAYER2, &coins(100_000000000000000000, TOKEN_DENOM));
+        let info = message_info(&Addr::unchecked(PLAYER2), &coins(100_000000000000000000, TOKEN_DENOM));
         execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
         // Query again - should have new entry
@@ -274,7 +274,7 @@ mod tests {
         let res = query(deps.as_ref(), env, query_msg).unwrap();
         let leaderboard: LeaderboardResponse = from_json(&res).unwrap();
         assert_eq!(leaderboard.entries.len(), 1);
-        assert_eq!(leaderboard.entries[0].player, PLAYER2);
+        assert_eq!(leaderboard.entries[0].player.as_str(), PLAYER2);
     }
 
     #[test]
@@ -291,7 +291,7 @@ mod tests {
                 difficulty: Difficulty::Easy,
                 risk_level: RiskLevel::Low,
             };
-            let info = mock_info(PLAYER, &coins(100_000000000000000000, TOKEN_DENOM));
+            let info = message_info(&Addr::unchecked(PLAYER), &coins(100_000000000000000000, TOKEN_DENOM));
             execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         }
 
@@ -322,7 +322,7 @@ mod tests {
                 difficulty: Difficulty::Easy,
                 risk_level: RiskLevel::Low,
             };
-            let info = mock_info(PLAYER, &coins((i + 1) * 10_000000000000000000, TOKEN_DENOM));
+            let info = message_info(&Addr::unchecked(PLAYER), &coins((i + 1) * 10_000000000000000000, TOKEN_DENOM));
             execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         }
 
@@ -338,7 +338,7 @@ mod tests {
 
         // Check games are in order and have PnL
         for (i, game) in history.games.iter().enumerate() {
-            assert_eq!(game.player, PLAYER);
+            assert_eq!(game.player.as_str(), PLAYER);
             assert_eq!(
                 game.bet_amount,
                 Uint128::new((i as u128 + 1) * 10_000000000000000000)
@@ -362,7 +362,7 @@ mod tests {
                 difficulty: Difficulty::Easy,
                 risk_level: RiskLevel::Low,
             };
-            let info = mock_info(PLAYER, &coins(100_000000000000000000, TOKEN_DENOM));
+            let info = message_info(&Addr::unchecked(PLAYER), &coins(100_000000000000000000, TOKEN_DENOM));
             execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         }
 
@@ -379,7 +379,7 @@ mod tests {
             let msg = ExecuteMsg::WithdrawHouse {
                 amount: withdraw_amount,
             };
-            let info = mock_info(ADMIN, &[]);
+            let info = message_info(&Addr::unchecked(ADMIN), &[]);
             let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
             assert_eq!(res.messages.len(), 1);
@@ -412,7 +412,7 @@ mod tests {
         let msg = ExecuteMsg::WithdrawHouse {
             amount: Uint128::new(1000_000000000000000000),
         };
-        let info = mock_info(ADMIN, &[]);
+        let info = message_info(&Addr::unchecked(ADMIN), &[]);
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
 
         assert!(matches!(err, ContractError::InsufficientBalance {}));
@@ -426,7 +426,7 @@ mod tests {
         let msg = ExecuteMsg::WithdrawHouse {
             amount: Uint128::new(100_000000000000000000),
         };
-        let info = mock_info(PLAYER, &[]);
+        let info = message_info(&Addr::unchecked(PLAYER), &[]);
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
 
         assert!(matches!(err, ContractError::Unauthorized {}));
@@ -446,7 +446,7 @@ mod tests {
                 difficulty: Difficulty::Easy,
                 risk_level: RiskLevel::Low,
             };
-            let info = mock_info(PLAYER, &coins(100_000000000000000000, TOKEN_DENOM));
+            let info = message_info(&Addr::unchecked(PLAYER), &coins(100_000000000000000000, TOKEN_DENOM));
             execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         }
 

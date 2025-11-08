@@ -63,7 +63,7 @@ mod tests {
         );
 
         assert_eq!(leaderboard.len(), 1);
-        assert_eq!(leaderboard[0].player, "player1");
+        assert_eq!(leaderboard[0].player.as_str(), "player1");
         assert_eq!(leaderboard[0].value, Uint128::new(100));
     }
 
