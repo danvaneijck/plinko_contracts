@@ -7,7 +7,7 @@ mod tests {
         QueryMsg, RiskLevel, StatsResponse, UserStatsResponse, LeaderboardResponse,
     };
     use cosmwasm_std::testing::{mock_dependencies, mock_env, message_info};
-    use cosmwasm_std::{coin, coins, from_json, BankMsg, DepsMut, Response, Uint128, Addr};
+    use cosmwasm_std::{coin, coins, from_json, Addr, BankMsg, DepsMut, Response, Uint128};
 
     const TOKEN_DENOM: &str = "factory/inj1contract/plink";
 
@@ -16,7 +16,7 @@ mod tests {
             token_denom: TOKEN_DENOM.to_string(),
         };
 
-        let admin = deps.api.addr_make("admin");
+        let admin = Addr::unchecked("admin");
         let info = message_info(&admin, &[]);
         instantiate(deps, mock_env(), info, msg)
     }
@@ -43,7 +43,7 @@ mod tests {
         let config: ConfigResponse = from_json(&res).unwrap();
 
         assert_eq!(config.token_denom, TOKEN_DENOM);
-        let admin = deps.api.addr_make("admin");
+        let admin = Addr::unchecked("admin");
         assert_eq!(config.admin, admin);
 
         // Check stats
@@ -65,7 +65,7 @@ mod tests {
         // Fund contract (simulating purchase contract's fund_house)
         fund_contract(deps.as_mut(), Uint128::new(100_000_000000000000000000));
 
-        let player = deps.api.addr_make("player");
+        let player = Addr::unchecked("player");
         let msg = ExecuteMsg::Play {
             difficulty: Difficulty::Easy,
             risk_level: RiskLevel::Low,
@@ -101,7 +101,7 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
-        let player = deps.api.addr_make("player");
+        let player = Addr::unchecked("player");
         let msg = ExecuteMsg::Play {
             difficulty: Difficulty::Easy,
             risk_level: RiskLevel::Low,
@@ -117,7 +117,7 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
-        let player = deps.api.addr_make("player");
+        let player = Addr::unchecked("player");
         let msg = ExecuteMsg::Play {
             difficulty: Difficulty::Easy,
             risk_level: RiskLevel::Low,
@@ -138,7 +138,7 @@ mod tests {
 
         // Play multiple games with different players
         for i in 0..5 {
-            let player = deps.api.addr_make(&format!("player{}", i));
+            let player = Addr::unchecked(format!("player{}", i));
             let msg = ExecuteMsg::Play {
                 difficulty: Difficulty::Easy,
                 risk_level: RiskLevel::Low,
@@ -166,7 +166,7 @@ mod tests {
 
         // Play multiple games with different players
         for i in 0..5 {
-            let player = deps.api.addr_make(&format!("player{}", i));
+            let player = Addr::unchecked(format!("player{}", i));
             let msg = ExecuteMsg::Play {
                 difficulty: Difficulty::Easy,
                 risk_level: RiskLevel::Low,
@@ -198,8 +198,8 @@ mod tests {
         // Fund contract
         fund_contract(deps.as_mut(), Uint128::new(500_000_000000000000000000));
 
-        let player1 = deps.api.addr_make("player1");
-        let player2 = deps.api.addr_make("player2");
+        let player1 = Addr::unchecked("player1");
+        let player2 = Addr::unchecked("player2");
 
         // Player 1 plays multiple games
         for _ in 0..3 {
@@ -241,8 +241,8 @@ mod tests {
         // Fund contract
         fund_contract(deps.as_mut(), Uint128::new(500_000_000000000000000000));
 
-        let player1 = deps.api.addr_make("player1");
-        let player2 = deps.api.addr_make("player2");
+        let player1 = Addr::unchecked("player1");
+        let player2 = Addr::unchecked("player2");
 
         // Play a game
         let msg = ExecuteMsg::Play {
@@ -293,7 +293,7 @@ mod tests {
         // Fund contract
         fund_contract(deps.as_mut(), Uint128::new(500_000_000000000000000000));
 
-        let player = deps.api.addr_make("player");
+        let player = Addr::unchecked("player");
 
         // Play multiple games
         for _ in 0..3 {
@@ -326,7 +326,7 @@ mod tests {
         // Fund contract
         fund_contract(deps.as_mut(), Uint128::new(150_000_000000000000000000));
 
-        let player = deps.api.addr_make("player");
+        let player = Addr::unchecked("player");
 
         // Play multiple games
         for i in 0..5 {
@@ -368,8 +368,8 @@ mod tests {
         // Fund contract
         fund_contract(deps.as_mut(), Uint128::new(500_000000000000000000));
 
-        let player = deps.api.addr_make("player");
-        let admin = deps.api.addr_make("admin");
+        let player = Addr::unchecked("player");
+        let admin = Addr::unchecked("admin");
 
         // Play some games to build house balance
         for _ in 0..5 {
@@ -424,7 +424,7 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
-        let admin = deps.api.addr_make("admin");
+        let admin = Addr::unchecked("admin");
         let msg = ExecuteMsg::WithdrawHouse {
             amount: Uint128::new(1000_000000000000000000),
         };
@@ -439,7 +439,7 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
-        let player = deps.api.addr_make("player");
+        let player = Addr::unchecked("player");
         let msg = ExecuteMsg::WithdrawHouse {
             amount: Uint128::new(100_000000000000000000),
         };
@@ -457,7 +457,7 @@ mod tests {
         // Fund contract with enough capital
         fund_contract(deps.as_mut(), Uint128::new(1000_000000000000000000));
 
-        let player = deps.api.addr_make("player");
+        let player = Addr::unchecked("player");
 
         // Play game where house should profit (low multiplier expected on average)
         for _ in 0..10 {

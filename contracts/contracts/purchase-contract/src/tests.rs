@@ -7,16 +7,12 @@ mod tests {
         StatsResponse,
     };
     use cosmwasm_std::testing::{mock_dependencies, mock_env, message_info};
-    use cosmwasm_std::{coins, from_json, DepsMut, Response, Uint128, Addr};
+    use cosmwasm_std::{coins, from_json, Addr, DepsMut, Response, Uint128};
     use injective_cosmwasm::InjectiveMsgWrapper;
 
-    const ADMIN: &str = "admin";
     const SUBDENOM: &str = "plink";
     const TOKEN_NAME: &str = "Plink Token";
     const TOKEN_SYMBOL: &str = "PLINK";
-    const TREASURY: &str = "treasury";
-    const BUYER: &str = "buyer";
-    const GAME_CONTRACT: &str = "game_contract";
 
     fn setup_contract(deps: DepsMut) -> Result<Response<InjectiveMsgWrapper>, ContractError> {
         let msg = InstantiateMsg {
@@ -24,11 +20,12 @@ mod tests {
             token_name: TOKEN_NAME.to_string(),
             token_symbol: TOKEN_SYMBOL.to_string(),
             token_decimals: 6,
-            treasury_address: TREASURY.to_string(),
+            treasury_address: "treasury".to_string(),
             exchange_rate: Uint128::new(100), // 1 INJ = 100 tokens
         };
 
-        let info = message_info(&Addr::unchecked(ADMIN), &[]);
+        let admin = Addr::unchecked("admin");
+        let info = message_info(&admin, &[]);
         instantiate(deps, mock_env(), info, msg)
     }
 
@@ -60,9 +57,9 @@ mod tests {
         assert_eq!(config.token_name, TOKEN_NAME);
         assert_eq!(config.token_symbol, TOKEN_SYMBOL);
         assert_eq!(config.token_decimals, 6);
-        assert_eq!(config.treasury_address.as_str(), TREASURY);
+        assert_eq!(config.treasury_address, Addr::unchecked("treasury"));
         assert_eq!(config.exchange_rate, Uint128::new(100));
-        assert_eq!(config.admin.as_str(), ADMIN);
+        assert_eq!(config.admin, Addr::unchecked("admin"));
 
         // Check stats
         let query_msg = QueryMsg::Stats {};
@@ -84,11 +81,12 @@ mod tests {
             token_name: TOKEN_NAME.to_string(),
             token_symbol: TOKEN_SYMBOL.to_string(),
             token_decimals: 6,
-            treasury_address: TREASURY.to_string(),
+            treasury_address: "treasury".to_string(),
             exchange_rate: Uint128::zero(),
         };
 
-        let info = message_info(&Addr::unchecked(ADMIN), &[]);
+        let admin = Addr::unchecked("admin");
+        let info = message_info(&admin, &[]);
         let err = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap_err();
 
         assert!(matches!(err, ContractError::InvalidExchangeRate {}));
@@ -100,8 +98,9 @@ mod tests {
         setup_contract(deps.as_mut()).unwrap();
 
         // Purchase with 10 INJ
+        let buyer = Addr::unchecked("buyer");
         let msg = ExecuteMsg::Purchase {};
-        let info = message_info(&Addr::unchecked(BUYER), &coins(10_000000000000000000, "inj"));
+        let info = message_info(&buyer, &coins(10_000000000000000000, "inj"));
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // Should have 2 messages: mint tokens + send INJ to treasury
@@ -112,7 +111,7 @@ mod tests {
             res.attributes,
             vec![
                 ("action", "purchase"),
-                ("buyer", BUYER),
+                ("buyer", "buyer"),
                 ("inj_amount", "10000000000000000000"),
                 ("token_amount", "1000000000000000000000"),
             ]
@@ -137,8 +136,9 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
+        let buyer = Addr::unchecked("buyer");
         let msg = ExecuteMsg::Purchase {};
-        let info = message_info(&Addr::unchecked(BUYER), &[]);
+        let info = message_info(&buyer, &[]);
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
 
         assert!(matches!(err, ContractError::NoFundsSent {}));
@@ -149,8 +149,9 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
+        let buyer = Addr::unchecked("buyer");
         let msg = ExecuteMsg::Purchase {};
-        let info = message_info(&Addr::unchecked(BUYER), &coins(10_000000000000000000, "wrong_denom"));
+        let info = message_info(&buyer, &coins(10_000000000000000000, "wrong_denom"));
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
 
         assert!(matches!(err, ContractError::NoFundsSent {}));
@@ -161,13 +162,15 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
+        let buyer = Addr::unchecked("buyer");
+
         // First purchase: 5 INJ
         let msg = ExecuteMsg::Purchase {};
-        let info = message_info(&Addr::unchecked(BUYER), &coins(5_000000000000000000, "inj"));
+        let info = message_info(&buyer, &coins(5_000000000000000000, "inj"));
         execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
 
         // Second purchase: 3 INJ
-        let info = message_info(&Addr::unchecked(BUYER), &coins(3_000000000000000000, "inj"));
+        let info = message_info(&buyer, &coins(3_000000000000000000, "inj"));
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // Check stats
@@ -188,11 +191,12 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
+        let admin = Addr::unchecked("admin");
         let msg = ExecuteMsg::FundHouse {
-            game_contract: GAME_CONTRACT.to_string(),
+            game_contract: "game_contract".to_string(),
             amount: Uint128::new(1000_000000000000000000),
         };
-        let info = message_info(&Addr::unchecked(ADMIN), &[]);
+        let info = message_info(&admin, &[]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // Should have 1 message: mint tokens to game contract
@@ -202,7 +206,7 @@ mod tests {
             res.attributes,
             vec![
                 ("action", "fund_house"),
-                ("game_contract", GAME_CONTRACT),
+                ("game_contract", "game_contract"),
                 ("amount", "1000000000000000000000"),
             ]
         );
@@ -228,11 +232,12 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
+        let buyer = Addr::unchecked("buyer");
         let msg = ExecuteMsg::FundHouse {
-            game_contract: GAME_CONTRACT.to_string(),
+            game_contract: "game_contract".to_string(),
             amount: Uint128::new(1000_000000000000000000),
         };
-        let info = message_info(&Addr::unchecked(BUYER), &[]);
+        let info = message_info(&buyer, &[]);
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
 
         assert!(matches!(err, ContractError::Unauthorized {}));
@@ -243,11 +248,12 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
+        let admin = Addr::unchecked("admin");
         let msg = ExecuteMsg::FundHouse {
-            game_contract: GAME_CONTRACT.to_string(),
+            game_contract: "game_contract".to_string(),
             amount: Uint128::zero(),
         };
-        let info = message_info(&Addr::unchecked(ADMIN), &[]);
+        let info = message_info(&admin, &[]);
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
 
         assert!(matches!(err, ContractError::InvalidAmount {}));
@@ -258,17 +264,19 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
+        let admin = Addr::unchecked("admin");
+
         // First funding
         let msg = ExecuteMsg::FundHouse {
-            game_contract: GAME_CONTRACT.to_string(),
+            game_contract: "game_contract".to_string(),
             amount: Uint128::new(500_000000000000000000),
         };
-        let info = message_info(&Addr::unchecked(ADMIN), &[]);
+        let info = message_info(&admin, &[]);
         execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
         // Second funding
         let msg = ExecuteMsg::FundHouse {
-            game_contract: GAME_CONTRACT.to_string(),
+            game_contract: "game_contract".to_string(),
             amount: Uint128::new(300_000000000000000000),
         };
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -293,17 +301,20 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
+        let buyer = Addr::unchecked("buyer");
+        let admin = Addr::unchecked("admin");
+
         // Purchase
         let msg = ExecuteMsg::Purchase {};
-        let info = message_info(&Addr::unchecked(BUYER), &coins(10_000000000000000000, "inj"));
+        let info = message_info(&buyer, &coins(10_000000000000000000, "inj"));
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // Fund house
         let msg = ExecuteMsg::FundHouse {
-            game_contract: GAME_CONTRACT.to_string(),
+            game_contract: "game_contract".to_string(),
             amount: Uint128::new(500_000000000000000000),
         };
-        let info = message_info(&Addr::unchecked(ADMIN), &[]);
+        let info = message_info(&admin, &[]);
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // Check stats
@@ -328,9 +339,10 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
+        let admin = Addr::unchecked("admin");
         let new_rate = Uint128::new(200);
         let msg = ExecuteMsg::UpdateExchangeRate { new_rate };
-        let info = message_info(&Addr::unchecked(ADMIN), &[]);
+        let info = message_info(&admin, &[]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         assert_eq!(
@@ -345,8 +357,9 @@ mod tests {
         assert_eq!(config.exchange_rate, new_rate);
 
         // Test purchase with new rate
+        let buyer = Addr::unchecked("buyer");
         let msg = ExecuteMsg::Purchase {};
-        let info = message_info(&Addr::unchecked(BUYER), &coins(10_000000000000000000, "inj"));
+        let info = message_info(&buyer, &coins(10_000000000000000000, "inj"));
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // Should get 10 * 200 = 2000 tokens
@@ -354,7 +367,7 @@ mod tests {
             res.attributes,
             vec![
                 ("action", "purchase"),
-                ("buyer", BUYER),
+                ("buyer", "buyer"),
                 ("inj_amount", "10000000000000000000"),
                 ("token_amount", "2000000000000000000000"),
             ]
@@ -366,10 +379,11 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
+        let buyer = Addr::unchecked("buyer");
         let msg = ExecuteMsg::UpdateExchangeRate {
             new_rate: Uint128::new(200),
         };
-        let info = message_info(&Addr::unchecked(BUYER), &[]);
+        let info = message_info(&buyer, &[]);
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
 
         assert!(matches!(err, ContractError::Unauthorized {}));
@@ -380,10 +394,11 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
+        let admin = Addr::unchecked("admin");
         let msg = ExecuteMsg::UpdateExchangeRate {
             new_rate: Uint128::zero(),
         };
-        let info = message_info(&Addr::unchecked(ADMIN), &[]);
+        let info = message_info(&admin, &[]);
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
 
         assert!(matches!(err, ContractError::InvalidExchangeRate {}));
@@ -394,11 +409,12 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
+        let admin = Addr::unchecked("admin");
         let new_treasury = "new_treasury";
         let msg = ExecuteMsg::UpdateTreasury {
             new_treasury: new_treasury.to_string(),
         };
-        let info = message_info(&Addr::unchecked(ADMIN), &[]);
+        let info = message_info(&admin, &[]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         assert_eq!(
@@ -410,7 +426,7 @@ mod tests {
         let query_msg = QueryMsg::Config {};
         let res = query(deps.as_ref(), mock_env(), query_msg).unwrap();
         let config: ConfigResponse = from_json(&res).unwrap();
-        assert_eq!(config.treasury_address.as_str(), new_treasury);
+        assert_eq!(config.treasury_address, Addr::unchecked(new_treasury));
     }
 
     #[test]
@@ -418,10 +434,11 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
+        let buyer = Addr::unchecked("buyer");
         let msg = ExecuteMsg::UpdateTreasury {
             new_treasury: "new_treasury".to_string(),
         };
-        let info = message_info(&Addr::unchecked(BUYER), &[]);
+        let info = message_info(&buyer, &[]);
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
 
         assert!(matches!(err, ContractError::Unauthorized {}));
@@ -477,11 +494,13 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut()).unwrap();
 
+        let admin = Addr::unchecked("admin");
+
         // Update exchange rate to 200
         let msg = ExecuteMsg::UpdateExchangeRate {
             new_rate: Uint128::new(200),
         };
-        let info = message_info(&Addr::unchecked(ADMIN), &[]);
+        let info = message_info(&admin, &[]);
         execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // Preview should reflect new rate
