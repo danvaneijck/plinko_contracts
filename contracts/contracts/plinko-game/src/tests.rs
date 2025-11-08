@@ -9,10 +9,10 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, message_info};
     use cosmwasm_std::{coin, coins, from_json, BankMsg, DepsMut, Response, Uint128, Addr};
 
-    const ADMIN: &str = "admin";
+    const ADMIN: &str = "inj1admin00000000000000000000000000000admin";
     const TOKEN_DENOM: &str = "factory/inj1contract/plink";
-    const PLAYER: &str = "player";
-    const PLAYER2: &str = "player2";
+    const PLAYER: &str = "inj1player0000000000000000000000000000player";
+    const PLAYER2: &str = "inj1player2000000000000000000000000000play2";
 
     fn setup_contract(deps: DepsMut) -> Result<Response, ContractError> {
         let msg = InstantiateMsg {
@@ -136,7 +136,7 @@ mod tests {
 
         // Play multiple games with different players
         for i in 0..5 {
-            let player = format!("player{}", i);
+            let player = format!("inj1player{:0>38}player", i);
             let msg = ExecuteMsg::Play {
                 difficulty: Difficulty::Easy,
                 risk_level: RiskLevel::Low,
@@ -164,7 +164,7 @@ mod tests {
 
         // Play multiple games with different players
         for i in 0..5 {
-            let player = format!("player{}", i);
+            let player = format!("inj1player{:0>38}player", i);
             let msg = ExecuteMsg::Play {
                 difficulty: Difficulty::Easy,
                 risk_level: RiskLevel::Low,
