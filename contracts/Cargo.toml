@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "contracts/plink-token",
     "contracts/purchase-contract",
     "contracts/plinko-game",
 ]
