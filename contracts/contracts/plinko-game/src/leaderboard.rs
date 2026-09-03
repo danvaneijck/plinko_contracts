@@ -1,5 +1,5 @@
-use cosmwasm_std::{Addr, Uint128};
 use crate::state::LeaderboardEntry;
+use cosmwasm_std::{Addr, Uint128};
 
 const MAX_LEADERBOARD_SIZE: usize = 100;
 
@@ -38,11 +38,11 @@ pub fn update_leaderboard(
 /// Check if daily leaderboard needs reset (00:00 UTC)
 pub fn should_reset_daily(last_reset: u64, current_time: u64) -> bool {
     const SECONDS_PER_DAY: u64 = 86400;
-    
+
     // Get the UTC day for both timestamps
     let last_reset_day = last_reset / SECONDS_PER_DAY;
     let current_day = current_time / SECONDS_PER_DAY;
-    
+
     current_day > last_reset_day
 }
 
@@ -54,7 +54,7 @@ mod tests {
     #[test]
     fn test_update_leaderboard_new_entry() {
         let mut leaderboard = vec![];
-        
+
         update_leaderboard(
             &mut leaderboard,
             Addr::unchecked("player1"),
@@ -70,10 +70,25 @@ mod tests {
     #[test]
     fn test_update_leaderboard_sorted_order() {
         let mut leaderboard = vec![];
-        
-        update_leaderboard(&mut leaderboard, Addr::unchecked("player1"), Uint128::new(100), None);
-        update_leaderboard(&mut leaderboard, Addr::unchecked("player2"), Uint128::new(200), None);
-        update_leaderboard(&mut leaderboard, Addr::unchecked("player3"), Uint128::new(150), None);
+
+        update_leaderboard(
+            &mut leaderboard,
+            Addr::unchecked("player1"),
+            Uint128::new(100),
+            None,
+        );
+        update_leaderboard(
+            &mut leaderboard,
+            Addr::unchecked("player2"),
+            Uint128::new(200),
+            None,
+        );
+        update_leaderboard(
+            &mut leaderboard,
+            Addr::unchecked("player3"),
+            Uint128::new(150),
+            None,
+        );
 
         assert_eq!(leaderboard.len(), 3);
         assert_eq!(leaderboard[0].value, Uint128::new(200));
@@ -84,9 +99,19 @@ mod tests {
     #[test]
     fn test_update_leaderboard_replace_existing() {
         let mut leaderboard = vec![];
-        
-        update_leaderboard(&mut leaderboard, Addr::unchecked("player1"), Uint128::new(100), None);
-        update_leaderboard(&mut leaderboard, Addr::unchecked("player1"), Uint128::new(200), None);
+
+        update_leaderboard(
+            &mut leaderboard,
+            Addr::unchecked("player1"),
+            Uint128::new(100),
+            None,
+        );
+        update_leaderboard(
+            &mut leaderboard,
+            Addr::unchecked("player1"),
+            Uint128::new(200),
+            None,
+        );
 
         assert_eq!(leaderboard.len(), 1);
         assert_eq!(leaderboard[0].value, Uint128::new(200));
@@ -96,7 +121,7 @@ mod tests {
     fn test_should_reset_daily_same_day() {
         let base_time = 1704067200; // 2024-01-01 00:00:00 UTC
         let later_same_day = base_time + 3600; // 1 hour later
-        
+
         assert!(!should_reset_daily(base_time, later_same_day));
     }
 
@@ -104,7 +129,7 @@ mod tests {
     fn test_should_reset_daily_next_day() {
         let base_time = 1704067200; // 2024-01-01 00:00:00 UTC
         let next_day = base_time + 86400; // Next day
-        
+
         assert!(should_reset_daily(base_time, next_day));
     }
 
@@ -112,7 +137,7 @@ mod tests {
     fn test_should_reset_daily_multiple_days() {
         let base_time = 1704067200; // 2024-01-01 00:00:00 UTC
         let three_days_later = base_time + (86400 * 3);
-        
+
         assert!(should_reset_daily(base_time, three_days_later));
     }
 }

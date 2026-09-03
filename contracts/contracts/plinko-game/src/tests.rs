@@ -3,21 +3,35 @@ mod tests {
     use crate::contract::{execute, instantiate, query};
     use crate::error::ContractError;
     use crate::msg::{
-        ConfigResponse, Difficulty, ExecuteMsg, HistoryResponse, InstantiateMsg, LeaderboardType,
-        QueryMsg, RiskLevel, StatsResponse, UserStatsResponse, LeaderboardResponse,
+        ConfigResponse, Difficulty, ExecuteMsg, HistoryResponse, InstantiateMsg,
+        LeaderboardResponse, LeaderboardType, QueryMsg, RiskLevel, StatsResponse,
+        UserStatsResponse,
     };
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, message_info};
-    use cosmwasm_std::{coin, coins, from_json, Addr, BankMsg, DepsMut, Response, Uint128};
+    use cosmwasm_std::testing::{message_info, mock_env, MockApi, MockQuerier, MockStorage};
+    use cosmwasm_std::{
+        coin, coins, from_json, Addr, BankMsg, DepsMut, OwnedDeps, Response, Uint128,
+    };
 
     const TOKEN_DENOM: &str = "factory/inj1contract/plink";
 
-    fn setup_contract(deps: DepsMut) -> Result<Response, ContractError> {
+    fn mock_deps() -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
+        // Use MockApi and configure it with the correct address prefix for Injective ("inj")
+        let api = MockApi::default();
+
+        OwnedDeps {
+            storage: MockStorage::default(),
+            api,
+            querier: MockQuerier::default(),
+            custom_query_type: std::marker::PhantomData,
+        }
+    }
+
+    fn setup_contract(deps: DepsMut, admin: &Addr) -> Result<Response, ContractError> {
         let msg = InstantiateMsg {
             token_denom: TOKEN_DENOM.to_string(),
         };
 
-        let admin = Addr::unchecked("admin");
-        let info = message_info(&admin, &[]);
+        let info = message_info(admin, &[]);
         instantiate(deps, mock_env(), info, msg)
     }
 
@@ -31,8 +45,9 @@ mod tests {
 
     #[test]
     fn test_instantiate() {
-        let mut deps = mock_dependencies();
-        let res = setup_contract(deps.as_mut()).unwrap();
+        let mut deps = mock_deps();
+        let admin = deps.api.addr_make("admin");
+        let res = setup_contract(deps.as_mut(), &admin).unwrap();
 
         assert_eq!(res.messages.len(), 0);
         assert_eq!(res.attributes, vec![("action", "instantiate"),]);
@@ -43,7 +58,6 @@ mod tests {
         let config: ConfigResponse = from_json(&res).unwrap();
 
         assert_eq!(config.token_denom, TOKEN_DENOM);
-        let admin = Addr::unchecked("admin");
         assert_eq!(config.admin, admin);
 
         // Check stats
@@ -59,13 +73,13 @@ mod tests {
 
     #[test]
     fn test_play_game() {
-        let mut deps = mock_dependencies();
-        setup_contract(deps.as_mut()).unwrap();
-
+        let mut deps = mock_deps();
+        let admin = deps.api.addr_make("admin");
+        let player = deps.api.addr_make("player");
+        setup_contract(deps.as_mut(), &admin).unwrap();
         // Fund contract (simulating purchase contract's fund_house)
         fund_contract(deps.as_mut(), Uint128::new(100_000_000000000000000000));
 
-        let player = Addr::unchecked("player");
         let msg = ExecuteMsg::Play {
             difficulty: Difficulty::Easy,
             risk_level: RiskLevel::Low,
@@ -93,15 +107,19 @@ mod tests {
         let user_stats: UserStatsResponse = from_json(&res).unwrap();
 
         assert_eq!(user_stats.total_games, 1);
-        assert_eq!(user_stats.total_wagered, Uint128::new(100_000000000000000000));
+        assert_eq!(
+            user_stats.total_wagered,
+            Uint128::new(100_000000000000000000)
+        );
     }
 
     #[test]
     fn test_play_game_no_funds() {
-        let mut deps = mock_dependencies();
-        setup_contract(deps.as_mut()).unwrap();
+        let mut deps = mock_deps();
+        let admin = deps.api.addr_make("admin");
+        let player = deps.api.addr_make("player");
 
-        let player = Addr::unchecked("player");
+        setup_contract(deps.as_mut(), &admin).unwrap();
         let msg = ExecuteMsg::Play {
             difficulty: Difficulty::Easy,
             risk_level: RiskLevel::Low,
@@ -114,10 +132,11 @@ mod tests {
 
     #[test]
     fn test_play_game_wrong_denom() {
-        let mut deps = mock_dependencies();
-        setup_contract(deps.as_mut()).unwrap();
+        let mut deps = mock_deps();
+        let admin = deps.api.addr_make("admin");
+        let player = deps.api.addr_make("player");
 
-        let player = Addr::unchecked("player");
+        setup_contract(deps.as_mut(), &admin).unwrap();
         let msg = ExecuteMsg::Play {
             difficulty: Difficulty::Easy,
             risk_level: RiskLevel::Low,
@@ -130,9 +149,9 @@ mod tests {
 
     #[test]
     fn test_multiple_purchases() {
-        let mut deps = mock_dependencies();
-        setup_contract(deps.as_mut()).unwrap();
-
+        let mut deps = mock_deps();
+        let admin = deps.api.addr_make("admin");
+        setup_contract(deps.as_mut(), &admin).unwrap();
         // Fund contract
         fund_contract(deps.as_mut(), Uint128::new(500_000_000000000000000000));
 
@@ -158,9 +177,9 @@ mod tests {
 
     #[test]
     fn test_global_leaderboard_best_wins() {
-        let mut deps = mock_dependencies();
-        setup_contract(deps.as_mut()).unwrap();
-
+        let mut deps = mock_deps();
+        let admin = deps.api.addr_make("admin");
+        setup_contract(deps.as_mut(), &admin).unwrap();
         // Fund contract
         fund_contract(deps.as_mut(), Uint128::new(500_000_000000000000000000));
 
@@ -192,9 +211,9 @@ mod tests {
 
     #[test]
     fn test_global_leaderboard_total_wagered() {
-        let mut deps = mock_dependencies();
-        setup_contract(deps.as_mut()).unwrap();
-
+        let mut deps = mock_deps();
+        let admin = deps.api.addr_make("admin");
+        setup_contract(deps.as_mut(), &admin).unwrap();
         // Fund contract
         fund_contract(deps.as_mut(), Uint128::new(500_000_000000000000000000));
 
@@ -230,14 +249,17 @@ mod tests {
         assert_eq!(leaderboard.entries.len(), 2);
         // Player 1 should be first (300 total wagered)
         assert_eq!(leaderboard.entries[0].player, player1);
-        assert_eq!(leaderboard.entries[0].value, Uint128::new(300_000000000000000000));
+        assert_eq!(
+            leaderboard.entries[0].value,
+            Uint128::new(300_000000000000000000)
+        );
     }
 
     #[test]
     fn test_daily_leaderboard_reset() {
-        let mut deps = mock_dependencies();
-        setup_contract(deps.as_mut()).unwrap();
-
+        let mut deps = mock_deps();
+        let admin = deps.api.addr_make("admin");
+        setup_contract(deps.as_mut(), &admin).unwrap();
         // Fund contract
         fund_contract(deps.as_mut(), Uint128::new(500_000_000000000000000000));
 
@@ -287,13 +309,13 @@ mod tests {
 
     #[test]
     fn test_user_stats_tracking() {
-        let mut deps = mock_dependencies();
-        setup_contract(deps.as_mut()).unwrap();
+        let mut deps = mock_deps();
+        let admin = deps.api.addr_make("admin");
+        let player = deps.api.addr_make("player");
 
+        setup_contract(deps.as_mut(), &admin).unwrap();
         // Fund contract
         fund_contract(deps.as_mut(), Uint128::new(500_000_000000000000000000));
-
-        let player = Addr::unchecked("player");
 
         // Play multiple games
         for _ in 0..3 {
@@ -313,20 +335,23 @@ mod tests {
         let user_stats: UserStatsResponse = from_json(&res).unwrap();
 
         assert_eq!(user_stats.total_games, 3);
-        assert_eq!(user_stats.total_wagered, Uint128::new(300_000000000000000000));
+        assert_eq!(
+            user_stats.total_wagered,
+            Uint128::new(300_000000000000000000)
+        );
         assert!(user_stats.best_win_pnl >= Uint128::zero());
         assert_ne!(user_stats.best_win_multiplier, "0.0x");
     }
 
     #[test]
     fn test_game_history() {
-        let mut deps = mock_dependencies();
-        setup_contract(deps.as_mut()).unwrap();
+        let mut deps = mock_deps();
+        let admin = deps.api.addr_make("admin");
+        let player = deps.api.addr_make("player");
 
+        setup_contract(deps.as_mut(), &admin).unwrap();
         // Fund contract
         fund_contract(deps.as_mut(), Uint128::new(150_000_000000000000000000));
-
-        let player = Addr::unchecked("player");
 
         // Play multiple games
         for i in 0..5 {
@@ -334,7 +359,10 @@ mod tests {
                 difficulty: Difficulty::Easy,
                 risk_level: RiskLevel::Low,
             };
-            let info = message_info(&player, &coins((i + 1) * 10_000000000000000000, TOKEN_DENOM));
+            let info = message_info(
+                &player,
+                &coins((i + 1) * 10_000000000000000000, TOKEN_DENOM),
+            );
             execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         }
 
@@ -362,14 +390,13 @@ mod tests {
 
     #[test]
     fn test_withdraw_house() {
-        let mut deps = mock_dependencies();
-        setup_contract(deps.as_mut()).unwrap();
+        let mut deps = mock_deps();
+        let admin = deps.api.addr_make("admin");
+        let player = deps.api.addr_make("player");
 
+        setup_contract(deps.as_mut(), &admin).unwrap();
         // Fund contract
         fund_contract(deps.as_mut(), Uint128::new(500_000000000000000000));
-
-        let player = Addr::unchecked("player");
-        let admin = Addr::unchecked("admin");
 
         // Play some games to build house balance
         for _ in 0..5 {
@@ -421,10 +448,9 @@ mod tests {
 
     #[test]
     fn test_withdraw_house_insufficient_balance() {
-        let mut deps = mock_dependencies();
-        setup_contract(deps.as_mut()).unwrap();
-
-        let admin = Addr::unchecked("admin");
+        let mut deps = mock_deps();
+        let admin = deps.api.addr_make("admin");
+        setup_contract(deps.as_mut(), &admin).unwrap();
         let msg = ExecuteMsg::WithdrawHouse {
             amount: Uint128::new(1000_000000000000000000),
         };
@@ -436,9 +462,9 @@ mod tests {
 
     #[test]
     fn test_withdraw_house_unauthorized() {
-        let mut deps = mock_dependencies();
-        setup_contract(deps.as_mut()).unwrap();
-
+        let mut deps = mock_deps();
+        let admin = deps.api.addr_make("admin");
+        setup_contract(deps.as_mut(), &admin).unwrap();
         let player = Addr::unchecked("player");
         let msg = ExecuteMsg::WithdrawHouse {
             amount: Uint128::new(100_000000000000000000),
@@ -451,9 +477,9 @@ mod tests {
 
     #[test]
     fn test_house_balance_tracking() {
-        let mut deps = mock_dependencies();
-        setup_contract(deps.as_mut()).unwrap();
-
+        let mut deps = mock_deps();
+        let admin = deps.api.addr_make("admin");
+        setup_contract(deps.as_mut(), &admin).unwrap();
         // Fund contract with enough capital
         fund_contract(deps.as_mut(), Uint128::new(1000_000000000000000000));
 

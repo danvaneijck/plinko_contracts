@@ -236,7 +236,10 @@ fn execute_play(
         });
     }
 
-    let path_str: String = path_bool.iter().map(|&b| if b { '1' } else { '0' }).collect();
+    let path_str: String = path_bool
+        .iter()
+        .map(|&b| if b { '1' } else { '0' })
+        .collect();
 
     Ok(Response::new()
         .add_messages(messages)
@@ -294,7 +297,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::DailyLeaderboard {
             leaderboard_type,
             limit,
-        } => to_json_binary(&query_daily_leaderboard(deps, env, leaderboard_type, limit)?),
+        } => to_json_binary(&query_daily_leaderboard(
+            deps,
+            env,
+            leaderboard_type,
+            limit,
+        )?),
     }
 }
 

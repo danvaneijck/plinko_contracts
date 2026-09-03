@@ -14,9 +14,7 @@ pub enum ExecuteMsg {
         risk_level: RiskLevel,
     },
     /// Withdraw house winnings (admin only)
-    WithdrawHouse {
-        amount: Uint128,
-    },
+    WithdrawHouse { amount: Uint128 },
 }
 
 #[cw_serde]
@@ -31,14 +29,14 @@ pub enum QueryMsg {
     #[returns(UserStatsResponse)]
     UserStats { player: String },
     #[returns(LeaderboardResponse)]
-    GlobalLeaderboard { 
+    GlobalLeaderboard {
         leaderboard_type: LeaderboardType,
-        limit: Option<u32> 
+        limit: Option<u32>,
     },
     #[returns(LeaderboardResponse)]
-    DailyLeaderboard { 
+    DailyLeaderboard {
         leaderboard_type: LeaderboardType,
-        limit: Option<u32> 
+        limit: Option<u32>,
     },
 }
 
@@ -58,8 +56,8 @@ pub enum RiskLevel {
 
 #[cw_serde]
 pub enum LeaderboardType {
-    BestWins,      // Sorted by best single game PnL
-    TotalWagered,  // Sorted by cumulative wagered amount
+    BestWins,     // Sorted by best single game PnL
+    TotalWagered, // Sorted by cumulative wagered amount
 }
 
 #[cw_serde]
