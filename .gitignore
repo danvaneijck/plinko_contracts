@@ -1,0 +1,6 @@
+# cargo build output
+target/
+contracts/target/
+
+# cosmwasm artifacts
+artifacts/
